@@ -182,6 +182,7 @@ def self_test():
             install.install = wrote
             if os.path.exists(unit[0]):
                 os.unlink(unit[0])
+        calls.clear()
         os.environ["CLAUDE_PLUGIN_OPTION_WORKTREE_ROOTS"] = "/a,/b"
         got, said = start("always", spawner, down, False, False)
         if got != "started" or calls != [["--roots", "/a,/b"]] or len(said) != 1:
