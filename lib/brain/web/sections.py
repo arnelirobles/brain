@@ -17,6 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
+from brain.forward import find_tool  # noqa: E402
 import forges  # noqa: E402
 import session  # noqa: E402
 import worktrees  # noqa: E402
@@ -80,9 +81,14 @@ def _notices(con):
                       "WHERE dismissed_at='' ORDER BY id DESC LIMIT 200")
 
 
+class UsageUnavailable(Exception):
+    pass
+
+
 def usage_rows():
-    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-    path = os.path.join(root, "tools", "lean-stats")
+    path = find_tool("lean-stats")
+    if not path:
+        raise UsageUnavailable("Usage comes from lean-agent-tools, which is not installed.")
     loader = importlib.machinery.SourceFileLoader("lean_stats_cli", path)
     spec = importlib.util.spec_from_loader("lean_stats_cli", loader)
     mod = importlib.util.module_from_spec(spec)
@@ -124,6 +130,8 @@ def collect(con, cache, roots, which=None, run=None) -> dict:
                 data["errors"][name] = "the brain database is locked"
             else:
                 data["errors"][name] = f"could not read: {e}"
+        except UsageUnavailable as e:
+            data["errors"][name] = str(e)
         except Exception as e:
             data["errors"][name] = f"could not read: {e}"
 

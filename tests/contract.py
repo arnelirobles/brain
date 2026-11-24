@@ -24,11 +24,12 @@ BRAIN = os.path.join(ROOT, "tools", "brain")
 ITEM_KEYS = {"id", "kind", "status", "project", "repo", "branch", "cycle", "run_id", "ref", "title", "tags",
              "first_seen", "last_seen"}
 
-# Tables and columns vscode/src/queries.ts reads from brain.db.
+# Tables and columns vscode/src/queries.ts reads from brain.db (items is read with SELECT *, into ItemFull).
 EXTENSION_READS = {
     "meta": {"key", "value"},
     "items": {"id", "project", "kind", "ref", "title", "severity", "cycle", "occurrences", "first_seen",
-              "last_seen", "status", "closed_at"},
+              "last_seen", "status", "closed_at", "repo", "branch", "body", "resolution", "phase", "source",
+              "model", "commit_hash", "link", "run_id", "session_id", "session_cwd"},
     "tags": {"item_id", "tag"},
     "sessions": {"id", "ended_at"},
     "activities": {"id", "source", "ts", "action", "project", "target", "ok", "duration_ms", "error", "host"},
@@ -140,6 +141,28 @@ def check_calls(fails, version):
                 r = run(env, ["list", "--json", "--open", "--project", "demo"])
                 if ok("list after close", r) and json.loads(r.stdout) != []:
                     fails.append("close left the item open")
+
+        # The close, reopen and resume calls the extension makes (vscode/src/brainCli.ts).
+        for ref in ("w1", "a1", "r1"):
+            run(env, ["add", "--project", "demo", "--kind", "question", "--ref", ref, "--title", ref])
+        r = run(env, ["list", "--json", "--open", "--project", "demo"])
+        ids = {i["ref"]: i["id"] for i in json.loads(r.stdout)} if r.returncode == 0 else {}
+        if {"w1", "a1", "r1"} - set(ids):
+            fails.append(f"could not set up items for close and reopen: {r.stdout[:200]}")
+        else:
+            ok("close --wontfix --resolution not-a-bug",
+               run(env, ["close", str(ids["w1"]), "--wontfix", "--resolution", "not-a-bug"]))
+            ok("close --resolution answered --note --delivered",
+               run(env, ["close", str(ids["a1"]), "--resolution", "answered", "--note", "an answer", "--delivered"]))
+            ok("close --resolution fixed", run(env, ["close", str(ids["r1"]), "--resolution", "fixed"]))
+            ok("reopen", run(env, ["reopen", str(ids["r1"])]))
+            r = run(env, ["list", "--json", "--open", "--project", "demo"])
+            if ok("list after reopen", r) and [i["ref"] for i in json.loads(r.stdout)] != ["r1"]:
+                fails.append(f"after the closes and the reopen only r1 should be open: {r.stdout[:200]}")
+        ok("resume", run(env, ["resume"], cwd=work))
+        r = run(env, ["resume", "--project", "demo"])
+        if ok("resume --project", r) and "r1" not in r.stdout:
+            fails.append(f"resume --project demo should list the open item r1: {r.stdout[:200]!r}")
 
         r = run(env, ["notice", "add", "--hook", "contract", "--session", "s1", "--cwd", work],
                 stdin="a notice")

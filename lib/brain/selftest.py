@@ -910,6 +910,28 @@ def run(brain_cli):
         rc, out, err = run("queue", "list", "--status", "queued")
         if rc != 2 or "test-phase was not found" not in err or out:
             fails.append(f"with no test-phase, brain queue must exit 2 and say so: {rc} {out!r} {err!r}")
+        # find_tool takes the newest cached version, and PATH first.
+        from . import forward
+        fake_home = os.path.join(d, "cachehome")
+        for ver in ("1.0.0", "1.10.0", "1.9.0"):
+            tdir = os.path.join(fake_home, ".claude", "plugins", "cache", "m", "lean-agent-tools", ver, "tools")
+            os.makedirs(tdir)
+            with open(os.path.join(tdir, "lean-stats"), "w") as f:
+                f.write("#!/bin/sh\n")
+            os.chmod(os.path.join(tdir, "lean-stats"), 0o755)
+        saved_ft = (os.environ.get("HOME"), os.environ.get("PATH"))
+        os.environ["HOME"], os.environ["PATH"] = fake_home, empty_path
+        try:
+            got = forward.find_tool("lean-stats")
+            if not got or "/1.10.0/" not in got:
+                fails.append(f"find_tool must pick the newest cached version: {got!r}")
+            if forward.find_tool("no-such-tool") is not None:
+                fails.append("find_tool must return None for a tool nobody has")
+            os.environ["PATH"] = fake_dir
+            if forward.find_tool("test-phase") != os.path.join(fake_dir, "test-phase"):
+                fails.append("find_tool must prefer PATH over the cache")
+        finally:
+            os.environ["HOME"], os.environ["PATH"] = saved_ft
         env.clear()
         env.update(saved_env)
         # The calls lean-agent-tools makes through the brain command.

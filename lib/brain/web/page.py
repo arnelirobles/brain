@@ -215,7 +215,22 @@ def _self_test() -> int:
     check("decided", sorted(d["ref"] for d in data["decided"]), ["q3", "r1"])
     check("gh missing note", "gh is not installed" in data["errors"].get("tickets", ""), True)
     check("usage error not crash", "usage" in data["errors"], True)
-    check("usage error is no data, not a missing script", "no data yet" in data["errors"].get("usage", ""), True)
+    if sections.find_tool("lean-stats"):
+        check("usage error is no data, not a missing script", "no data yet" in data["errors"].get("usage", ""), True)
+    else:
+        check("usage error says not installed", "not installed" in data["errors"].get("usage", ""), True)
+    import tempfile
+    saved = (os.environ.get("HOME"), os.environ.get("PATH"))
+    with tempfile.TemporaryDirectory() as bare:
+        os.environ["HOME"], os.environ["PATH"] = bare, bare
+        try:
+            sections.usage_rows()
+            msg = ""
+        except sections.UsageUnavailable as e:
+            msg = str(e)
+        finally:
+            os.environ["HOME"], os.environ["PATH"] = saved
+    check("usage without lean-agent-tools says not installed", "not installed" in msg, True)
     page = render(data, "KEY123", 8770)
     check("script escaped", "<script>alert(1)</script>" not in page and "&lt;script&gt;alert(1)&lt;/script&gt;" in page, True)
     check("notice escaped", "&lt;b&gt;note&lt;/b&gt;" in page, True)

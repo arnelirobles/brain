@@ -8,9 +8,9 @@ import sys
 MOVED = {"queue", "run-add", "flaky-clear"}
 
 
-def _cache_candidates(home):
+def _cache_candidates(home, name="test-phase"):
     found = []
-    pattern = os.path.join(home, ".claude", "plugins", "cache", "*", "lean-agent-tools", "*", "tools", "test-phase")
+    pattern = os.path.join(home, ".claude", "plugins", "cache", "*", "lean-agent-tools", "*", "tools", name)
     for p in glob.glob(pattern):
         ver = os.path.basename(os.path.dirname(os.path.dirname(p)))
         if re.fullmatch(r"\d+(\.\d+)*", ver) and os.path.isfile(p) and os.access(p, os.X_OK):
@@ -18,13 +18,18 @@ def _cache_candidates(home):
     return [p for _, p in sorted(found, reverse=True)]
 
 
-def find_test_phase():
-    on_path = shutil.which("test-phase")
+def find_tool(name):
+    """A lean-agent-tools script: on PATH first, else the newest one in the plugin cache."""
+    on_path = shutil.which(name)
     if on_path:
         return on_path
     home = os.environ.get("HOME") or os.path.expanduser("~")
-    cands = _cache_candidates(home)
+    cands = _cache_candidates(home, name)
     return cands[0] if cands else None
+
+
+def find_test_phase():
+    return find_tool("test-phase")
 
 
 def forward(argv):
