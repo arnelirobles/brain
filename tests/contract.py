@@ -206,6 +206,7 @@ def check_calls(fails, version):
 def check_validate(fails):
     claude = shutil.which("claude")
     if not claude:
+        print("skipped: claude not on PATH, plugin validate not run")
         return
     r = subprocess.run([claude, "plugin", "validate", "."], cwd=ROOT, capture_output=True, text=True)
     if r.returncode != 0:
