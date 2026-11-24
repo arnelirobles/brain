@@ -29,6 +29,7 @@ HOOK = {
 }
 
 BRAIN = os.path.join(bh.TOOLS, "brain")
+NEWER = "newer than this brain knows"
 
 
 def db_path():
@@ -44,6 +45,8 @@ def digest(cwd, recover=False):
         r = subprocess.run([sys.executable, BRAIN, "digest", "--quiet"] + (["--recover"] if recover else []), cwd=cwd, capture_output=True, text=True, timeout=5)
     except (subprocess.SubprocessError, OSError):  # a locked database makes brain wait past the timeout
         return ""
+    if r.returncode != 0 and NEWER in r.stderr:
+        return r.stderr.strip().splitlines()[-1]
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
@@ -52,7 +55,9 @@ def main():
         return 0
     event = bh.read_event()
     text = digest(str(event.get("cwd") or ""), event.get("source") == "compact")  # only a compaction loses state
-    if text:
+    if NEWER in text:  # brain.db was written by a newer brain: say so once, no digest
+        bh.context("SessionStart", text)
+    elif text:
         bh.context("SessionStart", f"Brain digest for this project (full list: {bh.tool_path('brain')} list --project NAME --status open). "
                      "Do not work around a blocker.\n" + text)
     return 0
