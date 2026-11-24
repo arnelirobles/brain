@@ -77,6 +77,7 @@ The database is `~/.local/share/lean/brain.db`, migrated forward when opened.
 - `LEAN_SERVE_PORT`: port of the page (default 8770).
 - Plugin setting `serve_mode`: `manual` (default), `session` (started with a session, stops 30 minutes after the last one) or `always`.
 - Plugin setting `worktree_roots`: comma-separated folders the page searches for git worktrees.
+- `serve_mode` and `worktree_roots` set on lean-agent-tools 1.x are not read by brain, so set them again on brain.
 
 ## Tests
 

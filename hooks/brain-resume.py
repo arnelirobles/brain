@@ -29,6 +29,7 @@ HOOK = {
 }
 
 BRAIN = os.path.join(bh.TOOLS, "brain")
+NEWER = "newer than this brain knows"
 
 
 def db_path():
@@ -44,6 +45,8 @@ def digest(cwd, recover=False):
         r = subprocess.run([sys.executable, BRAIN, "digest", "--quiet"] + (["--recover"] if recover else []), cwd=cwd, capture_output=True, text=True, timeout=5)
     except (subprocess.SubprocessError, OSError):  # a locked database makes brain wait past the timeout
         return ""
+    if r.returncode != 0 and NEWER in r.stderr:
+        return r.stderr.strip().splitlines()[-1]
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
@@ -52,7 +55,9 @@ def main():
         return 0
     event = bh.read_event()
     text = digest(str(event.get("cwd") or ""), event.get("source") == "compact")  # only a compaction loses state
-    if text:
+    if text.startswith("brain: ") and NEWER in text:  # brain.db was written by a newer brain: say so once, no digest
+        bh.context("SessionStart", text)
+    elif text:
         bh.context("SessionStart", f"Brain digest for this project (full list: {bh.tool_path('brain')} list --project NAME --status open). "
                      "Do not work around a blocker.\n" + text)
     return 0
@@ -124,6 +129,16 @@ def self_test():
             fails.append("nothing open must be silent")
         if hook("not json")[0] != 0:
             fails.append("a bad event must not fail")
+        # A brain.db at a newer schema: one line naming it, exit 0.
+        env["LEAN_BRAIN_DB"] = os.path.join(d, "newer", "brain.db")
+        os.makedirs(os.path.dirname(env["LEAN_BRAIN_DB"]))
+        newer = sqlite3.connect(env["LEAN_BRAIN_DB"], isolation_level=None)
+        newer.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        newer.execute("INSERT INTO meta VALUES ('schema_version', '10')")
+        newer.close()
+        rc, out, err = hook()
+        if rc != 0 or "newer than this brain knows" not in out:
+            fails.append(f"a newer brain.db must be named at session start: {rc} {out!r} {err!r}")
         # A database locked by another writer: brain waits past the hook's timeout, the hook prints nothing.
         env["LEAN_BRAIN_DB"] = os.path.join(d, "none", "brain.db")
         locker = sqlite3.connect(env["LEAN_BRAIN_DB"], isolation_level=None)
