@@ -1,0 +1,15 @@
+{
+  "name": "brain",
+  "owner": {
+    "name": "Arnel Robles",
+    "url": "https://github.com/arnelirobles"
+  },
+  "plugins": [
+    {
+      "name": "brain",
+      "source": "./",
+      "description": "A local list of open items for every session on the machine."
+    }
+  ],
+  "description": "Brain, a local item store with a command line, an MCP server and a web page."
+}

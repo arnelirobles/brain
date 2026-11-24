@@ -21,7 +21,7 @@ Lean agent works for one developer on one machine. brain is a SQLite file in the
 ## Goals
 
 - Every developer keeps a local brain that works offline and with no server, exactly as today.
-- A local brain can sync to a central brain. With sync on, the team shares claims, item status, questions, decisions, evidence, queue jobs and cost.
+- A local brain can sync to a central brain. With sync on, the team shares claims, item status, questions, decisions, evidence and cost. A team queue belongs to lean-agent-tools, not to brain.
 - The rules hold in Claude Code, Codex and Cursor alike. Enforcement lives in the shared layer, git hooks and CI, and each tool gets a thin adapter.
 - Tickets are read from and written back to Jira, GitHub, GitLab and Azure DevOps at fixed points.
 - The team's constitution (base rules) and decisions are stored centrally. A decision that conflicts with an existing one becomes a proposal and binds only after the scope's approver approves it.

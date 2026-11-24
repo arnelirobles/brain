@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  self-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: git config --global user.email ci@example.com && git config --global user.name ci
+      - run: bash tests/run-all.sh
+
+  works-alone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      LEAN_BRAIN_DB: ${{ runner.temp }}/brain.db
+    steps:
+      - uses: actions/checkout@v4
+      - name: add, list and digest
+        run: |
+          python3 tools/brain add --project demo --kind question --ref q1 --title "a title"
+          python3 tools/brain list --open --project demo | grep q1
+          python3 tools/brain digest --project demo
+      - name: MCP initialize and tools/list
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          p = subprocess.Popen([sys.executable, "tools/brain-mcp"], stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, text=True)
+          def rpc(i, method, params=None):
+              p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params or {}}) + "\n")
+              p.stdin.flush()
+              return json.loads(p.stdout.readline())
+          init = rpc(1, "initialize", {"protocolVersion": "2025-03-26", "capabilities": {},
+                                       "clientInfo": {"name": "ci"}})
+          assert init["result"]["serverInfo"]["name"] == "brain", init
+          names = {t["name"] for t in rpc(2, "tools/list")["result"]["tools"]}
+          want = {"brain_list", "brain_show", "brain_add", "brain_close", "brain_stats", "brain_digest"}
+          assert names == want, names
+          p.stdin.close()
+          p.wait(timeout=10)
+          PY
