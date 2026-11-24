@@ -55,7 +55,7 @@ def main():
         return 0
     event = bh.read_event()
     text = digest(str(event.get("cwd") or ""), event.get("source") == "compact")  # only a compaction loses state
-    if NEWER in text:  # brain.db was written by a newer brain: say so once, no digest
+    if text.startswith("brain: ") and NEWER in text:  # brain.db was written by a newer brain: say so once, no digest
         bh.context("SessionStart", text)
     elif text:
         bh.context("SessionStart", f"Brain digest for this project (full list: {bh.tool_path('brain')} list --project NAME --status open). "
