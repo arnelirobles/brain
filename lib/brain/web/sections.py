@@ -26,6 +26,7 @@ NEEDS_KINDS = ("question", "blocker", "pending", "risk")
 _RECOMMEND = re.compile(r"recommend(?:ed|ation)?\s*:", re.I)
 WORKTREE_TTL = 90
 _REPOS = {}  # folder to (expiry, repo_of), kept across page loads so git runs once per folder per TTL
+_STATS = {}  # path of lean-stats to its loaded module
 _SECTIONS = ("needs_you", "flaky", "created", "tickets", "worktrees", "notices", "usage", "decided")
 
 
@@ -89,10 +90,13 @@ def usage_rows():
     path = find_tool("lean-stats")
     if not path:
         raise UsageUnavailable("Usage comes from lean-agent-tools, which is not installed.")
-    loader = importlib.machinery.SourceFileLoader("lean_stats_cli", path)
-    spec = importlib.util.spec_from_loader("lean_stats_cli", loader)
-    mod = importlib.util.module_from_spec(spec)
-    loader.exec_module(mod)
+    mod = _STATS.get(path)
+    if mod is None:  # lean-stats puts its lib folder on sys.path when it loads, so load each file once
+        loader = importlib.machinery.SourceFileLoader("lean_stats_cli", path)
+        spec = importlib.util.spec_from_loader("lean_stats_cli", loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
+        _STATS[path] = mod
     ls = mod.leanstats
     if not os.path.exists(ls.db_path()):
         raise FileNotFoundError("lean-stats has no data yet")
