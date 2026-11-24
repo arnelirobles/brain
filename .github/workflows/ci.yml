@@ -20,10 +20,9 @@ jobs:
   works-alone:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      LEAN_BRAIN_DB: ${{ runner.temp }}/brain.db
     steps:
       - uses: actions/checkout@v4
+      - run: echo "LEAN_BRAIN_DB=$RUNNER_TEMP/brain.db" >> "$GITHUB_ENV"
       - name: add, list and digest
         run: |
           python3 tools/brain add --project demo --kind question --ref q1 --title "a title"
