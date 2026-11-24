@@ -399,6 +399,24 @@ def self_test():
                            env=dict(env, PATH=bh.TOOLS + os.pathsep + "/usr/bin"))
         if r.stdout.strip() != "brain":
             fails.append(f"tool_path with the tools folder on PATH must be the bare name: {r.stdout!r}")
+
+        # a brain.db from a later brain: the CLI says so and fails, the hook still exits 0
+        newer = os.path.join(d, "newer-brain.db")
+        newer_env = dict(env, LEAN_BRAIN_DB=newer)
+        newer_env.pop("CLAUDE_ENV_FILE", None)
+        subprocess.run([sys.executable, BRAIN, "list"], env=newer_env, capture_output=True)
+        con = sqlite3.connect(newer)
+        con.execute("UPDATE meta SET value='10' WHERE key='schema_version'")
+        con.commit()
+        con.close()
+        r = subprocess.run([sys.executable, BRAIN, "list"], env=newer_env, capture_output=True, text=True)
+        if r.returncode == 0 or "newer" not in r.stderr or "Traceback" in r.stderr:
+            fails.append(f"brain list on a newer schema must fail and name it: {r.returncode} {r.stderr!r}")
+        r = subprocess.run([sys.executable, me], input=json.dumps(
+            {"hook_event_name": "SessionStart", "session_id": "newer-1", "cwd": cwd}),
+            env=newer_env, capture_output=True, text=True)
+        if r.returncode != 0 or "Traceback" in r.stderr:
+            fails.append(f"the session hook on a newer schema must exit 0: {r.returncode} {r.stderr!r}")
     print("self-test: ok" if not fails else "self-test failed:\n  " + "\n  ".join(fails))
     return 1 if fails else 0
 

@@ -72,7 +72,8 @@ The database is `~/.local/share/lean/brain.db`, migrated forward when opened.
 
 - `LEAN_BRAIN_DB`: path of the database file.
 - `LEAN_BRAIN_RESUME=off`: no digest at session start.
-- `LEAN_PROFILE=off`: turns the hooks off.
+- `LEAN_SESSION_ENV=off`: `brain-session.py` stops writing the session id and folder, stops recording the session and stops handing over answers. The PATH line for brain's tools folder is still written.
+- `LEAN_PROFILE=off`: turns the hooks off, the PATH line included.
 - `LEAN_SERVE_PORT`: port of the page (default 8770).
 - Plugin setting `serve_mode`: `manual` (default), `session` (started with a session, stops 30 minutes after the last one) or `always`.
 - Plugin setting `worktree_roots`: comma-separated folders the page searches for git worktrees.

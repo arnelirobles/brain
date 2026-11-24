@@ -14,7 +14,6 @@ import tempfile
 TOOLS = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "tools"))
 
 PATH_LINE = re.compile(r'export PATH=(?:"\$PATH":|"\$\{PATH:\+\$PATH:\}")(.+)')
-SESSION_LINE = re.compile(r"export LEAN_SESSION_(?:ID|CWD)=")
 
 
 def read_event():
