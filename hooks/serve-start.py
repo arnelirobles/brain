@@ -4,7 +4,7 @@
 SessionStart. The mode is the first argument, else $CLAUDE_PLUGIN_OPTION_SERVE_MODE (the plugin's serve_mode
 setting), else manual; any other value is manual and noted once. session: start `brain serve --idle-exit 30` detached when nothing answers on the port.
 always: start it the same way (without the idle exit) unless the login unit is installed, and note once that
-`brain serve --install always` starts it at login. manual: nothing. LEAN_PROFILE=off does nothing at all. Never blocks the session and always exits 0.
+`brain serve --install always` starts it at login. manual: nothing. In every mode a login unit that points at an old plugin folder is rewritten; none is ever made here. LEAN_PROFILE=off does nothing at all. Never blocks the session and always exits 0.
 
   serve-start.py [MODE]
   serve-start.py --self-test
@@ -80,17 +80,17 @@ def start(mode, spawner=spawn, probe=answering, installed=None, stale=None, rein
             said.append(f"serve_mode is {mode!r}; use always, session or manual. Treated as manual.")
         return "nothing", said
     roots = os.environ.get("CLAUDE_PLUGIN_OPTION_WORKTREE_ROOTS", "")
-    if mode == "always":
-        from brain.web import install
-        if installed is None:
-            installed = install.installed()
+    from brain.web import install
+    if installed is None:
+        installed = install.installed()
+    if installed:  # the unit existing is the user's choice, so a stale one is repaired in every mode
         brain = os.path.abspath(BRAIN)
-        if installed and (install.stale(brain) if stale is None else stale):
+        if install.stale(brain) if stale is None else stale:
             plat = install.platform_name()
             (reinstall or (lambda: install.install(plat, sys.executable, brain, port(), roots)))()
             said.append("The brain page login unit pointed at an old plugin folder; it was rewritten for this one.")
             return "reinstalled", said
-        if installed:
+        if mode == "always":
             return "nothing", said
     if mode == "manual" or probe(port()):
         return "nothing", said
