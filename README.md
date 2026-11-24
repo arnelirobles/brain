@@ -54,7 +54,7 @@ brain serve
 brain --version
 ```
 
-`brain --help` lists every option and the kinds and resolutions. Adding an open item with the same project, kind and ref raises its count instead of making a new row.
+`brain activity` is described in [docs/activity.md](docs/activity.md). `brain --help` lists every option and the kinds and resolutions. Adding an open item with the same project, kind and ref raises its count instead of making a new row.
 
 The database is `~/.local/share/lean/brain.db`, migrated forward when opened.
 
