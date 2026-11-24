@@ -219,6 +219,34 @@ def _self_test() -> int:
         check("usage error is no data, not a missing script", "no data yet" in data["errors"].get("usage", ""), True)
     else:
         check("usage error says not installed", "not installed" in data["errors"].get("usage", ""), True)
+    # the UsageUnavailable branch must produce its own message, not the generic "could not read: ..." one
+    saved_find = sections.find_tool
+    sections.find_tool = lambda name: None
+    try:
+        absent = sections.collect(con, forges.Cache(), [], which=nowhere, run=failing)
+    finally:
+        sections.find_tool = saved_find
+    check("usage without lean-stats is exactly the not installed message", absent["errors"].get("usage"),
+          "Usage comes from lean-agent-tools, which is not installed.")
+    # a fake lean-stats that, like the real one, puts its lib folder on sys.path when it loads
+    fake_bin = tempfile.mkdtemp()
+    fake = os.path.join(fake_bin, "lean-stats")
+    with open(fake, "w") as f:
+        f.write("import os, sys\n"
+                "sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'lib'))\n"
+                "class leanstats:\n"
+                "    db_path = staticmethod(lambda: os.path.join(os.path.dirname(__file__), 'none.db'))\n")
+    os.chmod(fake, 0o755)
+    saved_path = os.environ.get("PATH", "")
+    os.environ["PATH"] = fake_bin + os.pathsep + saved_path
+    try:
+        sections.collect(con, forges.Cache(), [], which=nowhere, run=failing)
+        before = len(sys.path)
+        again = sections.collect(con, forges.Cache(), [], which=nowhere, run=failing)
+    finally:
+        os.environ["PATH"] = saved_path
+    check("fake lean-stats is read", "no data yet" in again["errors"].get("usage", ""), True)
+    check("lean-stats is loaded once, sys.path does not grow per render", len(sys.path), before)
     import tempfile
     saved = (os.environ.get("HOME"), os.environ.get("PATH"))
     with tempfile.TemporaryDirectory() as bare:

@@ -212,8 +212,25 @@ def check_validate(fails):
         fails.append(f"claude plugin validate: exit {r.returncode}: {(r.stdout + r.stderr).strip()[:300]}")
 
 
+def check_validate_skips(fails):
+    """With no claude on PATH, check_validate says so instead of passing in silence."""
+    import contextlib
+    import io
+    saved = os.environ.get("PATH", "")
+    out = io.StringIO()
+    os.environ["PATH"] = tempfile.mkdtemp()
+    try:
+        with contextlib.redirect_stdout(out):
+            check_validate([])
+    finally:
+        os.environ["PATH"] = saved
+    if "skipped: claude not on PATH, plugin validate not run" not in out.getvalue():
+        fails.append(f"check_validate must print its skip line when claude is not on PATH: {out.getvalue()!r}")
+
+
 def self_test():
     fails = []
+    check_validate_skips(fails)
     version = check_plugin(fails)
     check_hooks(fails)
     check_calls(fails, version)

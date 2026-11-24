@@ -154,6 +154,34 @@ def self_test():
         got, said = start("always", spawner, down, True, True, lambda: re_.append(1))
         if got != "reinstalled" or re_ != [1] or calls or len(said) != 1:
             fails.append(f"a stale login unit must be rewritten and noted: {got} {said} {re_}")
+        # a stale login unit is repaired whatever the mode; none is made unless the mode is always
+        from brain.web import install
+        plat = install.platform_name()
+        unit = install.unit_for(plat, sys.executable, "/gone/tools/brain", 8770)
+        wrote = install.install
+
+        class Done:
+            returncode = 0
+        install.install = lambda *a, **k: wrote(*a, runner=lambda cmd, **kw: Done(), **k)
+        try:
+            for mode in ("manual", "session"):
+                if os.path.exists(unit[0]):
+                    os.unlink(unit[0])
+                calls.clear()
+                start(mode, spawner, down)
+                if os.path.exists(unit[0]):
+                    fails.append(f"{mode}: no login unit may be made when there was none")
+                os.makedirs(os.path.dirname(unit[0]), exist_ok=True)
+                with open(unit[0], "w") as f:
+                    f.write(unit[1])
+                got, said = start(mode, spawner, down)
+                if got != "reinstalled" or os.path.abspath(BRAIN) not in open(unit[0]).read() \
+                        or "/gone/tools/brain" in open(unit[0]).read():
+                    fails.append(f"{mode}: a stale login unit must point at this brain: {got} {said}")
+        finally:
+            install.install = wrote
+            if os.path.exists(unit[0]):
+                os.unlink(unit[0])
         os.environ["CLAUDE_PLUGIN_OPTION_WORKTREE_ROOTS"] = "/a,/b"
         got, said = start("always", spawner, down, False, False)
         if got != "started" or calls != [["--roots", "/a,/b"]] or len(said) != 1:

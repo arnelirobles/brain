@@ -124,6 +124,16 @@ def self_test():
             fails.append("nothing open must be silent")
         if hook("not json")[0] != 0:
             fails.append("a bad event must not fail")
+        # A brain.db at a newer schema: one line naming it, exit 0.
+        env["LEAN_BRAIN_DB"] = os.path.join(d, "newer", "brain.db")
+        os.makedirs(os.path.dirname(env["LEAN_BRAIN_DB"]))
+        newer = sqlite3.connect(env["LEAN_BRAIN_DB"], isolation_level=None)
+        newer.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        newer.execute("INSERT INTO meta VALUES ('schema_version', '10')")
+        newer.close()
+        rc, out, err = hook()
+        if rc != 0 or "newer than this brain knows" not in out:
+            fails.append(f"a newer brain.db must be named at session start: {rc} {out!r} {err!r}")
         # A database locked by another writer: brain waits past the hook's timeout, the hook prints nothing.
         env["LEAN_BRAIN_DB"] = os.path.join(d, "none", "brain.db")
         locker = sqlite3.connect(env["LEAN_BRAIN_DB"], isolation_level=None)
